@@ -1,0 +1,129 @@
+<div id="gptk-swipe" hidden>
+  <header class="gs-bar">
+    <div class="gs-period">
+      <select id="gs-granularity" title="Period length">
+        <option value="day">Day</option>
+        <option value="week">Week</option>
+        <option value="month">Month</option>
+        <option value="year">Year</option>
+        <option value="all">Everything</option>
+      </select>
+      <button id="gs-prev" class="gs-icon-btn" title="Older period ( [ )">&#8249;</button>
+      <input type="date" id="gs-date" title="Jump to a date" />
+      <button id="gs-next" class="gs-icon-btn" title="Newer period ( ] )">&#8250;</button>
+      <span id="gs-period-label" class="gs-period-label"></span>
+    </div>
+    <div id="gs-stats" class="gs-stats"></div>
+    <div class="gs-bar-actions">
+      <button id="gs-settings-toggle" class="gs-text-btn">Settings</button>
+      <button id="gs-history-toggle" class="gs-text-btn">History</button>
+      <button id="gs-close" class="gs-icon-btn" title="Close (Esc)">&#10005;</button>
+    </div>
+  </header>
+  <div class="gs-progress"><div id="gs-progress-fill"></div></div>
+
+  <main class="gs-stage">
+    <div id="gs-card" class="gs-card">
+      <img id="gs-img" alt="" draggable="false" />
+      <video id="gs-video" controls playsinline hidden></video>
+      <div class="gs-stamp gs-stamp-left" id="gs-stamp-left">DELETE</div>
+      <div class="gs-stamp gs-stamp-right">KEEP</div>
+      <div class="gs-stamp gs-stamp-up">FAVOURITE</div>
+      <div class="gs-stamp gs-stamp-down">SORT LATER</div>
+    </div>
+    <div id="gs-empty" class="gs-empty" hidden>
+      <p id="gs-empty-text"></p>
+      <div class="gs-empty-actions">
+        <button id="gs-empty-older" class="gs-text-btn">Older period &#8249;</button>
+        <button id="gs-empty-retry" class="gs-text-btn" hidden>Retry</button>
+        <button id="gs-empty-restart" class="gs-text-btn">Review this period again</button>
+      </div>
+    </div>
+    <div id="gs-meta" class="gs-meta"></div>
+  </main>
+
+  <footer class="gs-controls">
+    <button class="gs-btn gs-btn-delete" data-act="delete" title="Delete (Left arrow / A)">
+      <span class="gs-btn-icon">&#10005;</span><span class="gs-btn-label" id="gs-delete-label">Bin</span><kbd>&#8592;</kbd>
+    </button>
+    <button class="gs-btn gs-btn-later" data-act="later" title="Sort later (Down arrow / S)">
+      <span class="gs-btn-icon">&#8615;</span><span class="gs-btn-label">Sort later</span><kbd>&#8595;</kbd>
+    </button>
+    <button class="gs-btn gs-btn-undo" data-act="undo" title="Undo (Z / Backspace)">
+      <span class="gs-btn-icon">&#8630;</span><span class="gs-btn-label">Undo</span><kbd>Z</kbd>
+    </button>
+    <button class="gs-btn gs-btn-fav" data-act="favourite" title="Favourite and keep (Up arrow / W)">
+      <span class="gs-btn-icon">&#9733;</span><span class="gs-btn-label">Favourite</span><kbd>&#8593;</kbd>
+    </button>
+    <button class="gs-btn gs-btn-keep" data-act="keep" title="Keep (Right arrow / D)">
+      <span class="gs-btn-icon">&#10003;</span><span class="gs-btn-label">Keep</span><kbd>&#8594;</kbd>
+    </button>
+  </footer>
+
+  <aside id="gs-settings" class="gs-panel" hidden>
+    <h3>Swipe settings</h3>
+    <fieldset>
+      <legend>Swipe left does</legend>
+      <label><input type="radio" name="gs-delete-mode" value="bin" /> Move to Bin <small>(recoverable for 60 days)</small></label>
+      <label><input type="radio" name="gs-delete-mode" value="album" /> Add to a delete album <small>(nothing is binned)</small></label>
+      <label><input type="radio" name="gs-delete-mode" value="archive" /> Archive <small>(hidden from the photo grid)</small></label>
+    </fieldset>
+    <label class="gs-field">Delete album name <input type="text" id="gs-delete-album" /></label>
+    <label class="gs-field">Sort later album name <input type="text" id="gs-later-album" /></label>
+    <label class="gs-check"><input type="checkbox" id="gs-include-archived" /> Include archived items</label>
+    <label class="gs-check"><input type="checkbox" id="gs-skip-reviewed" /> Skip items already reviewed</label>
+    <div class="gs-row">
+      <span id="gs-reviewed-count"></span>
+      <button id="gs-forget-reviewed" class="gs-text-btn gs-danger">Forget all reviewed</button>
+    </div>
+    <h4>Keys</h4>
+    <dl class="gs-keys">
+      <dt>&#8592; / A</dt><dd>Delete (per setting above)</dd>
+      <dt>&#8594; / D</dt><dd>Keep</dd>
+      <dt>&#8593; / W</dt><dd>Favourite and keep</dd>
+      <dt>&#8595; / S</dt><dd>Sort later</dd>
+      <dt>Z / Backspace</dt><dd>Undo</dd>
+      <dt>[ / ]</dt><dd>Older / newer period</dd>
+      <dt>V</dt><dd>Play video</dd>
+      <dt>O</dt><dd>Open in Google Photos</dd>
+      <dt>Esc</dt><dd>Close</dd>
+    </dl>
+  </aside>
+
+  <aside id="gs-history" class="gs-panel" hidden>
+    <h3>History</h3>
+    <p id="gs-log-count" class="gs-muted"></p>
+    <div class="gs-row">
+      <button id="gs-export-ndjson" class="gs-text-btn">Export (.ndjson)</button>
+      <button id="gs-export-csv" class="gs-text-btn">Export (.csv)</button>
+    </div>
+    <p class="gs-muted">The .ndjson export can be loaded back here to revert. The .csv is for reading in a spreadsheet.</p>
+
+    <h4>Revert</h4>
+    <fieldset>
+      <legend>From</legend>
+      <label><input type="radio" name="gs-revert-source" value="local" checked /> This browser's log</label>
+      <label><input type="radio" name="gs-revert-source" value="file" /> An exported file</label>
+      <input type="file" id="gs-revert-file" accept=".ndjson,.jsonl,.json,application/x-ndjson" hidden />
+    </fieldset>
+    <label class="gs-field">Session
+      <select id="gs-revert-session"><option value="">All sessions</option></select>
+    </label>
+    <label class="gs-field">Only actions on or after <input type="datetime-local" id="gs-revert-since" /></label>
+    <fieldset id="gs-revert-actions">
+      <legend>Actions to undo</legend>
+      <label><input type="checkbox" value="trash" checked /> Moved to Bin <span data-count="trash"></span></label>
+      <label><input type="checkbox" value="mark-delete" checked /> Added to delete album <span data-count="mark-delete"></span></label>
+      <label><input type="checkbox" value="archive" checked /> Archived <span data-count="archive"></span></label>
+      <label><input type="checkbox" value="favourite" checked /> Favourited <span data-count="favourite"></span></label>
+      <label><input type="checkbox" value="later" checked /> Added to sort-later album <span data-count="later"></span></label>
+      <label><input type="checkbox" value="keep" /> Kept <small>(only clears the reviewed mark)</small> <span data-count="keep"></span></label>
+    </fieldset>
+    <div class="gs-row">
+      <button id="gs-revert-run" class="gs-text-btn gs-danger">Revert</button>
+    </div>
+    <p id="gs-revert-status" class="gs-muted"></p>
+  </aside>
+
+  <div id="gs-toast" class="gs-toast" hidden></div>
+</div>
