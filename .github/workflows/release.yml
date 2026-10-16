@@ -44,6 +44,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Package extension
+        run: cd dist/extension && zip -r ../../google_photos_toolkit_swipe_extension.zip .
+
       - name: Determine tag
         id: tag
         run: |
@@ -59,7 +62,8 @@ jobs:
       - name: Create draft release
         run: |
           gh release create "${{ steps.tag.outputs.version }}" \
-            google_photos_toolkit.user.js \
+            google_photos_toolkit_swipe.user.js \
+            google_photos_toolkit_swipe_extension.zip \
             --draft \
             --title "${{ steps.tag.outputs.version }}" \
             --generate-notes

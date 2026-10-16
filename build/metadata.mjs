@@ -30,7 +30,8 @@ export default function userScriptMetadataBlock() {
   const metadata = {
     name: pkg.nameFull,
     description: pkg.description,
-    version: pkg.version,
+    // Userscript managers compare dotted numbers, so 3.3.0-swipe.1 -> 3.3.0.1
+    version: pkg.version.replace('-swipe.', '.'),
     author: pkg.author,
     homepageURL: pkg.homepage,
     supportURL: pkg.bugs.url,

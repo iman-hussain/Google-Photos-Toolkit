@@ -1,15 +1,15 @@
 {
   "name": "google-photos-toolkit",
-  "nameFull": "Google Photos Toolkit",
-  "version": "3.3.0",
-  "description": "Bulk organize your media",
+  "nameFull": "Google Photos Toolkit (Swipe)",
+  "version": "3.3.0-swipe.1",
+  "description": "Bulk organise your media, plus a swipe mode for culling it one photo at a time",
   "userScript": {
-    "namespace": "https://github.com/xob0t/Google-Photos-Toolkit",
+    "namespace": "https://github.com/iman-hussain/Google-Photos-Toolkit",
     "match": [
       "*://photos.google.com/*"
     ],
     "icon": "https://raw.githubusercontent.com/xob0t/Google-Photos-Toolkit/main/media/icon.png",
-    "downloadURL": "https://github.com/xob0t/Google-Photos-Toolkit/releases/latest/download/google_photos_toolkit.user.js",
+    "downloadURL": "https://github.com/iman-hussain/Google-Photos-Toolkit/releases/latest/download/google_photos_toolkit_swipe.user.js",
     "run-at": "body",
     "grant": [
       "GM_registerMenuCommand",
@@ -17,7 +17,7 @@
     ],
     "noframes": ""
   },
-  "main": "google_photos_toolkit.user.js",
+  "main": "google_photos_toolkit_swipe.user.js",
   "packageManager": "pnpm@10.30.0",
   "scripts": {
     "build": "rollup -c",
@@ -29,16 +29,17 @@
     "test:watch": "vitest"
   },
   "keywords": [],
-  "author": "xob0t",
+  "author": "xob0t, iman-hussain",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/xob0t/Google-Photos-Toolkit/discussions"
+    "url": "https://github.com/iman-hussain/Google-Photos-Toolkit/issues"
   },
-  "homepage": "https://github.com/xob0t/Google-Photos-Toolkit#readme",
+  "homepage": "https://github.com/iman-hussain/Google-Photos-Toolkit#readme",
   "devDependencies": {
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "@rollup/pluginutils": "^5.4.0",
+    "@types/chrome": "^0.3.5",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "@typescript-eslint/parser": "^8.67.0",
     "eslint": "^10.8.1",
