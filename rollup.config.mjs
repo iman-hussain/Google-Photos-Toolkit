@@ -10,14 +10,24 @@ const loadJSON = (path) => JSON.parse(fs.readFileSync(new URL(path, import.meta.
 let packageJson = loadJSON('./package.json');
 
 const entry = 'src/index.ts';
-const extensionDir = 'dist/extension';
+const outDir = 'dist';
 
-// Userscript manager APIs the toolkit uses, stubbed for the extension build.
-// In a MAIN world content script the page's window is the real one.
-const extensionShim = [
-  'const unsafeWindow = window;',
-  'const GM_registerMenuCommand = () => {};',
+// One file serves as both the userscript and the extension's content script.
+// Userscript manager APIs are looked up at runtime and fall back to plain
+// browser equivalents, since a MAIN world content script has the page's real
+// window and no menu API.
+const runtimeShim = [
+  "const gptkPageWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;",
+  "const gptkMenuCommand = typeof GM_registerMenuCommand === 'function' ? GM_registerMenuCommand : () => {};",
 ].join('\n');
+
+// Added after replace has run, so the shim's own references survive it
+const injectRuntimeShim = () => ({
+  name: 'inject-runtime-shim',
+  renderChunk(code) {
+    return { code: code.replace("'use strict';", `'use strict';\n\n${runtimeShim}`), map: null };
+  },
+});
 
 const toolkitPlugins = () => [
   // Import HTML as string (must come before TypeScript plugin)
@@ -44,6 +54,15 @@ const toolkitPlugins = () => [
     __HOMEPAGE__: JSON.stringify(packageJson.homepage)
   }),
 
+  // Route userscript globals through runtimeShim. The default delimiters skip
+  // matches followed by a dot, which would miss unsafeWindow.foo.
+  replace({
+    preventAssignment: true,
+    delimiters: ['\\b', '\\b'],
+    unsafeWindow: 'gptkPageWindow',
+    GM_registerMenuCommand: 'gptkMenuCommand',
+  }),
+
   typescript({
     tsconfig: './tsconfig.json',
   }),
@@ -52,37 +71,25 @@ const toolkitPlugins = () => [
 const config = [
   {
     input: entry,
-    output: [
-      {
-        file: packageJson.main,
-        format: 'iife',
-      },
-    ],
-    plugins: [
-      ...toolkitPlugins(),
-      banner(userScriptMetadataBlock),
-    ]
-  },
-  {
-    input: entry,
     output: {
-      file: `${extensionDir}/gptk.js`,
+      file: `${outDir}/${packageJson.main}`,
       format: 'iife',
-      intro: extensionShim,
     },
     plugins: [
       ...toolkitPlugins(),
+      injectRuntimeShim(),
+      banner(userScriptMetadataBlock),
       extensionManifest(),
     ]
   },
   {
     input: 'src/extension/background.ts',
-    output: { file: `${extensionDir}/background.js`, format: 'iife' },
+    output: { file: `${outDir}/background.js`, format: 'iife' },
     plugins: [typescript({ tsconfig: './tsconfig.json' })],
   },
   {
     input: 'src/extension/bridge.ts',
-    output: { file: `${extensionDir}/bridge.js`, format: 'iife' },
+    output: { file: `${outDir}/bridge.js`, format: 'iife' },
     plugins: [typescript({ tsconfig: './tsconfig.json' })],
   },
 ];

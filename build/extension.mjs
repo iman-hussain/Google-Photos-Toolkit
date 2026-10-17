@@ -2,7 +2,8 @@ import fs from 'fs';
 const loadJSON = (path) => JSON.parse(fs.readFileSync(new URL(path, import.meta.url)));
 
 //
-// Emits manifest.json and the icon next to the extension bundles
+// Emits manifest.json and the icon, making dist/ a loadable unpacked extension
+// that also holds the userscript
 //
 
 export function extensionManifest() {
@@ -24,7 +25,7 @@ export function extensionManifest() {
         background: { service_worker: 'background.js' },
         content_scripts: [
           // The toolkit reads WIZ_global_data from the page, so it must run in the main world
-          { matches: match, js: ['gptk.js'], run_at: 'document_end', world: 'MAIN' },
+          { matches: match, js: [pkg.main], run_at: 'document_end', world: 'MAIN' },
           { matches: match, js: ['bridge.js'], run_at: 'document_end' },
         ],
       };

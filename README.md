@@ -23,9 +23,13 @@ If you have the original GPTK userscript installed too, disable one of them, the
 
 ### Chrome extension
 
-1. Download `google_photos_toolkit_swipe_extension.zip` from the [latest release](https://github.com/iman-hussain/Google-Photos-Toolkit/releases/latest) and unzip it (or run `pnpm build` and use `dist/extension`)
+1. Download `google_photos_toolkit_swipe_extension.zip` from the [latest release](https://github.com/iman-hussain/Google-Photos-Toolkit/releases/latest) and unzip it (or run `pnpm build` and use `dist/`)
 2. Open `chrome://extensions`, turn on Developer mode, click "Load unpacked" and pick the folder
 3. Open Google Photos. Clicking the extension's toolbar icon opens swipe mode
+
+### One folder, both ways
+
+`pnpm build` puts everything in `dist/`. That folder is the unpacked extension, and the `google_photos_toolkit_swipe.user.js` inside it is the userscript. It's the same file either way: under Tampermonkey it uses `unsafeWindow` and the menu API, as an extension content script it falls back to the page's `window`. Use one or the other, not both at once.
 
 ## Swipe mode
 
@@ -41,7 +45,7 @@ Pick a day, week, month or year (or the whole library) and you get one photo at 
 | `↓` / `S` | Sort later | Adds it to a "Sort later" album |
 | `Z` / `Backspace` | Undo | Reverses the last action and shows the photo again |
 | `[` / `]` | | Older / newer period |
-| `V` | | Play a video |
+| `V` | | Video sound on / off (videos play inline, muted) |
 | `O` | | Open the photo in Google Photos |
 
 You can also drag the photo left, right, up or down.
