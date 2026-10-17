@@ -12,9 +12,10 @@ export interface ReviewedRecord {
   taken: number;
 }
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const REVIEWED = 'reviewed';
 const LOG = 'log';
+const META = 'meta';
 
 function promisify<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -45,6 +46,7 @@ export default class SwipeDb {
           : db.createObjectStore(REVIEWED, { keyPath: 'mediaKey' });
         // Lets a period's reviewed marks be cleared without touching the network
         if (!reviewed.indexNames.contains('taken')) reviewed.createIndex('taken', 'taken');
+        if (!db.objectStoreNames.contains(META)) db.createObjectStore(META);
         if (!db.objectStoreNames.contains(LOG)) {
           const log = db.createObjectStore(LOG, { keyPath: 'id', autoIncrement: true });
           log.createIndex('at', 'at');
@@ -111,6 +113,22 @@ export default class SwipeDb {
     return count;
   }
 
+  /** Reviewed counts for many [start, end) taken ranges in one transaction. */
+  async countReviewedRanges(ranges: Array<[number, number]>): Promise<number[]> {
+    const results = ranges.map(() => 0);
+    if (ranges.length === 0) return results;
+    const { tx, store } = await this.store(REVIEWED, 'readonly');
+    const index = store.index('taken');
+    ranges.forEach(([start, end], i) => {
+      const request = index.count(IDBKeyRange.bound(start, end, false, true));
+      request.onsuccess = (): void => {
+        results[i] = request.result;
+      };
+    });
+    await done(tx);
+    return results;
+  }
+
   async countReviewed(): Promise<number> {
     const { store } = await this.store(REVIEWED, 'readonly');
     return promisify(store.count());
@@ -119,6 +137,19 @@ export default class SwipeDb {
   async clearReviewed(): Promise<void> {
     const { tx, store } = await this.store(REVIEWED, 'readwrite');
     store.clear();
+    await done(tx);
+  }
+
+  // ─── meta ────────────────────────────────────────────────────────────
+
+  async getMeta<T>(key: string): Promise<T | undefined> {
+    const { store } = await this.store(META, 'readonly');
+    return (await promisify(store.get(key))) as T | undefined;
+  }
+
+  async setMeta(key: string, value: unknown): Promise<void> {
+    const { tx, store } = await this.store(META, 'readwrite');
+    store.put(value, key);
     await done(tx);
   }
 

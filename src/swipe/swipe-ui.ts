@@ -10,6 +10,9 @@ import SwipeActions, { type ActionRecord } from './actions';
 import { ACTION_LABELS, type SwipeAction } from './history-format';
 import { exportLog, planFile, planLocal, summariseFile, summariseLocal, type LogSummary, type RevertFilter } from './history';
 import { getSettings, saveSettings, type DeleteMode } from './settings';
+import Overview from './overview';
+import { scanLibrary } from './scan';
+import { isSorted, nextUnsorted, type LibraryCounts } from './status';
 import {
   fromDateInputValue,
   periodContaining,
@@ -75,6 +78,9 @@ class SwipeController {
   private counts: Partial<Record<SwipeAction, number>> = {};
   private toastTimer = 0;
   private revertFile: File | null = null;
+  private overview!: Overview;
+  private libraryCounts: LibraryCounts | null = null;
+  private scanning = false;
 
   mount(): void {
     document.body.insertAdjacentHTML('beforeend', swipeTemplate);
@@ -86,6 +92,22 @@ class SwipeController {
     this.card = $('gs-card');
     this.img = $('gs-img') as HTMLImageElement;
     this.video = $('gs-video') as HTMLVideoElement;
+
+    this.overview = new Overview($('gs-overview'), {
+      db: this.db,
+      done: () => getSettings().done,
+      counts: () => this.libraryCounts,
+      current: () => this.period,
+      open: (period) => {
+        this.overview.hide();
+        this.startPeriod(period);
+      },
+      toggleSorted: (period) => this.toggleSorted(period),
+    });
+    void this.db.getMeta<LibraryCounts>('counts').then((counts) => {
+      this.libraryCounts = counts ?? null;
+      this.renderScanStatus();
+    });
 
     this.insertHeaderButton();
     this.bindControls();
@@ -130,6 +152,7 @@ class SwipeController {
     this.video.pause();
     this.video.removeAttribute('src');
     this.img.removeAttribute('src');
+    this.overview.hide();
     this.preloaded.clear();
     this.feed = null;
     this.current = null;
@@ -148,7 +171,8 @@ class SwipeController {
 
     input('gs-date').value = toDateInputValue(Number.isFinite(period.start) ? period.start : Date.now());
     input('gs-date').disabled = period.granularity === 'all';
-    $('gs-period-label').textContent = periodLabel(period);
+    input('gs-granularity').value = period.granularity;
+    this.renderPeriodStatus();
 
     this.feed = new TimelineFeed(this.api, period, {
       includeArchived: settings.includeArchived,
@@ -185,9 +209,13 @@ class SwipeController {
     this.video.load(); // actually stops the previous stream
 
     if (!item) {
-      const cursors = { ...getSettings().cursors, [periodKey(this.period)]: this.period.start - 1 };
+      const key = periodKey(this.period);
+      const cursors = { ...getSettings().cursors, [key]: this.period.start - 1 };
       if (Number.isFinite(this.period.start)) saveSettings({ cursors });
-      this.showEmpty(`Nothing left to review in ${periodLabel(this.period)}.`, false);
+      // Finishing a period ticks it off
+      if (!isSorted(this.period, getSettings().done)) saveSettings({ done: { ...getSettings().done, [key]: Date.now() } });
+      this.renderPeriodStatus();
+      this.showEmpty(`Nothing left to review in ${periodLabel(this.period)}, so it's marked as sorted.`, false);
       this.renderStats();
       return;
     }
@@ -419,7 +447,18 @@ class SwipeController {
     $('gs-close').addEventListener('click', () => this.close());
     $('gs-prev').addEventListener('click', () => this.startPeriod(shiftPeriod(this.period, -1)));
     $('gs-next').addEventListener('click', () => this.startPeriod(shiftPeriod(this.period, 1)));
-    $('gs-empty-older').addEventListener('click', () => this.startPeriod(shiftPeriod(this.period, -1)));
+    $('gs-empty-older').addEventListener('click', () => this.goNextUnsorted());
+    $('gs-empty-calendar').addEventListener('click', () => this.overview.show());
+    $('gs-next-unsorted').addEventListener('click', () => this.goNextUnsorted());
+    $('gs-period-label').addEventListener('click', () => this.toggleOverview());
+    $('gs-overview-toggle').addEventListener('click', () => this.toggleOverview());
+    $('gs-sorted-toggle').addEventListener('click', () => this.toggleSorted(this.period));
+    $('gs-ov-close').addEventListener('click', () => this.overview.hide());
+    $('gs-ov-everything').addEventListener('click', () => {
+      this.overview.hide();
+      this.startPeriod(periodContaining('all', Date.now()));
+    });
+    $('gs-ov-scan').addEventListener('click', () => void this.scan());
     $('gs-empty-retry').addEventListener('click', () => this.startPeriod(this.period));
     $('gs-empty-restart').addEventListener('click', () => this.restartPeriod());
     $('gs-granularity').addEventListener('change', () => {
@@ -438,8 +477,10 @@ class SwipeController {
   /** Clear the resume point and reviewed marks for this period only. */
   private restartPeriod(): void {
     const cursors = { ...getSettings().cursors };
+    const done = { ...getSettings().done };
     delete cursors[periodKey(this.period)];
-    saveSettings({ cursors });
+    delete done[periodKey(this.period)];
+    saveSettings({ cursors, done });
     this.current = null;
     // Reviewed marks are indexed by taken time, so this is a local range delete
     void this.db
@@ -451,11 +492,97 @@ class SwipeController {
       .catch((error: unknown) => this.toast(`Couldn't restart: ${String(error)}`));
   }
 
+  // ─── sorted / picker ─────────────────────────────────────────────────
+
+  private toggleOverview(): void {
+    if (this.overview.isOpen) {
+      this.overview.hide();
+      return;
+    }
+    $('gs-settings').hidden = true;
+    $('gs-history').hidden = true;
+    this.overview.show();
+  }
+
+  private toggleSorted(period: Period): void {
+    const done = { ...getSettings().done };
+    const key = periodKey(period);
+    if (done[key]) {
+      delete done[key];
+    } else if (isSorted(period, done)) {
+      // Sorted because a bigger period containing it is ticked off
+      this.toast(`${periodLabel(period)} is inside a period marked sorted. Unmark that one instead.`);
+      return;
+    } else {
+      done[key] = Date.now();
+    }
+    saveSettings({ done });
+    this.renderPeriodStatus();
+    if (this.overview.isOpen) this.overview.render();
+  }
+
+  private renderPeriodStatus(): void {
+    const sorted = isSorted(this.period, getSettings().done);
+    $('gs-period-label').textContent = `${sorted ? '✓ ' : ''}${periodLabel(this.period)}`;
+    const toggle = $('gs-sorted-toggle');
+    toggle.textContent = sorted ? '✓ Sorted' : 'Mark sorted';
+    toggle.classList.toggle('gs-is-sorted', sorted);
+    toggle.hidden = this.period.granularity === 'all';
+    $('gs-next-unsorted').hidden = this.period.granularity === 'all';
+  }
+
+  private goNextUnsorted(): void {
+    const next = nextUnsorted(this.period, -1, getSettings().done, this.libraryCounts);
+    if (next) this.startPeriod(next);
+    else this.toast('No older unsorted periods');
+  }
+
+  private renderScanStatus(text?: string): void {
+    const counts = this.libraryCounts;
+    const summary = counts
+      ? `${counts.total.toLocaleString('en-GB')} photos, counted ${new Date(counts.scannedAt).toLocaleDateString('en-GB')}`
+      : 'Not counted yet';
+    $('gs-ov-scan-status').textContent = text ?? summary;
+    $('gs-ov-scan').textContent = this.scanning ? 'Stop' : counts ? 'Recount' : 'Count photos';
+  }
+
+  /** Count photos per day across the whole library, for the picker. */
+  private async scan(): Promise<void> {
+    if (this.scanning) {
+      this.scanning = false;
+      return;
+    }
+    this.scanning = true;
+    this.renderScanStatus('Counting…');
+    try {
+      const counts = await scanLibrary(
+        this.api,
+        getSettings().includeArchived,
+        (p) => {
+          const oldest = p.oldest ? new Date(p.oldest).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '';
+          this.renderScanStatus(`Counted ${p.items.toLocaleString('en-GB')}${oldest ? `, back to ${oldest}` : ''}…`);
+        },
+        () => !this.scanning
+      );
+      if (counts) {
+        this.libraryCounts = counts;
+        await this.db.setMeta('counts', counts);
+      }
+    } catch (error) {
+      this.toast(`Counting failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.scanning = false;
+      this.renderScanStatus();
+      if (this.overview.isOpen) this.overview.render();
+    }
+  }
+
   private togglePanel(id: string): void {
     const panel = $(id);
     const show = panel.hidden;
     $('gs-settings').hidden = true;
     $('gs-history').hidden = true;
+    this.overview.hide();
     panel.hidden = !show;
     if (show && id === 'gs-settings') void this.refreshReviewedCount();
     if (show && id === 'gs-history') void this.refreshLocalSummary();
@@ -468,7 +595,9 @@ class SwipeController {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      if (!$('gs-settings').hidden || !$('gs-history').hidden) {
+      if (this.overview.isOpen) {
+        this.overview.hide();
+      } else if (!$('gs-settings').hidden || !$('gs-history').hidden) {
         $('gs-settings').hidden = true;
         $('gs-history').hidden = true;
       } else {
@@ -477,6 +606,15 @@ class SwipeController {
       return;
     }
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+    // The picker is modal: swipe keys shouldn't act on a photo hidden behind it
+    if (this.overview.isOpen) {
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        this.overview.hide();
+      }
+      e.stopPropagation();
+      return;
+    }
 
     const press = (act: string): void => {
       const button = this.root.querySelector<HTMLElement>(`.gs-btn[data-act="${act}"]`);
@@ -500,6 +638,13 @@ class SwipeController {
         this.startPeriod(shiftPeriod(this.period, -1)); break;
       case ']':
         this.startPeriod(shiftPeriod(this.period, 1)); break;
+      case 'c': case 'C':
+        this.toggleOverview(); break;
+      case 'm': case 'M':
+        if (this.period.granularity !== 'all') this.toggleSorted(this.period);
+        break;
+      case 'n': case 'N':
+        this.goNextUnsorted(); break;
       case 'v': case 'V':
         this.toggleSound(); break;
       case 'o': case 'O':

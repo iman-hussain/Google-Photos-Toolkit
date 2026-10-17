@@ -89,3 +89,12 @@ export function fromDateInputValue(value: string): number | null {
   if (!match) return null;
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime();
 }
+
+/** ISO 8601 week number (weeks start Monday, week 1 holds 4 January). */
+export function isoWeek(ms: number): number {
+  const d = new Date(ms);
+  const thursday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7) + 3);
+  const jan4 = new Date(thursday.getFullYear(), 0, 4);
+  const firstThursday = new Date(jan4.getFullYear(), 0, 4 - ((jan4.getDay() + 6) % 7) + 3);
+  return 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / (7 * 86_400_000));
+}

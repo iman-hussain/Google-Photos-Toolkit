@@ -141,6 +141,43 @@ describe('swipe UI', () => {
     expect(document.getElementById('gs-revert-status')?.textContent).toMatch(/Reverted \d+ actions/);
   });
 
+  it('M marks the current period sorted and back again', () => {
+    press('m');
+    expect(document.getElementById('gs-period-label')?.textContent?.startsWith('✓')).toBe(true);
+    expect(document.getElementById('gs-sorted-toggle')?.textContent).toBe('✓ Sorted');
+    press('m');
+    expect(document.getElementById('gs-sorted-toggle')?.textContent).toBe('Mark sorted');
+  });
+
+  it('C opens the picker, and clicking a day reviews that day', async () => {
+    press('c');
+    expect(document.getElementById('gs-overview')?.hidden).toBe(false);
+    const today = String(new Date().getDate());
+    const day = [...document.querySelectorAll<HTMLButtonElement>('.gs-ov-day:not(.gs-ov-outside)')].find(
+      (b) => b.querySelector('.gs-ov-label')?.textContent === today
+    );
+    expect(day).toBeDefined();
+    day?.click();
+    await settle();
+    expect(document.getElementById('gs-overview')?.hidden).toBe(true);
+    expect((document.getElementById('gs-granularity') as HTMLSelectElement).value).toBe('day');
+  });
+
+  it('tick-off mode marks a month sorted from the picker', async () => {
+    press('c');
+    const tick = document.getElementById('gs-ov-tick') as HTMLInputElement;
+    tick.checked = true;
+    tick.dispatchEvent(new Event('change'));
+    const jan = document.querySelector<HTMLButtonElement>('.gs-ov-month');
+    jan?.click();
+    await settle(100);
+    expect(document.querySelector<HTMLElement>('.gs-ov-month')?.dataset.state).toBe('sorted');
+    tick.checked = false;
+    tick.dispatchEvent(new Event('change'));
+    press('Escape');
+    expect(document.getElementById('gs-overview')?.hidden).toBe(true);
+  });
+
   it('closes on Escape', () => {
     press('Escape');
     expect(document.getElementById('gptk-swipe')?.hidden).toBe(true);

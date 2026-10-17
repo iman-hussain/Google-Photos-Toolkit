@@ -1,6 +1,7 @@
 import getFromStorage from '../utils/getFromStorage';
 import saveToStorage from '../utils/saveToStorage';
 import type { Granularity } from './period';
+import type { DoneMap } from './status';
 
 export type DeleteMode = 'bin' | 'album' | 'archive';
 
@@ -17,6 +18,8 @@ export interface SwipeSettings {
   cursors: Record<string, number>;
   /** Album title -> mediaKey, so albums are only looked up once. */
   albumKeys: Record<string, string>;
+  /** Periods marked as sorted (by hand, or by finishing them). */
+  done: DoneMap;
 }
 
 const STORAGE_KEY = 'swipe';
@@ -31,6 +34,7 @@ export const defaultSettings: SwipeSettings = {
   anchor: null,
   cursors: {},
   albumKeys: {},
+  done: {},
 };
 
 let current: SwipeSettings | null = null;

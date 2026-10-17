@@ -11,10 +11,13 @@
       <button id="gs-prev" class="gs-icon-btn" title="Older period ( [ )">&#8249;</button>
       <input type="date" id="gs-date" title="Jump to a date" />
       <button id="gs-next" class="gs-icon-btn" title="Newer period ( ] )">&#8250;</button>
-      <span id="gs-period-label" class="gs-period-label"></span>
+      <button id="gs-period-label" class="gs-period-label" title="Pick a period (C)"></button>
+      <button id="gs-sorted-toggle" class="gs-text-btn gs-sorted-toggle" title="Mark this period as sorted (M)">Mark sorted</button>
+      <button id="gs-next-unsorted" class="gs-text-btn" title="Jump to the next older period that isn't sorted (N)">Next unsorted &#8249;</button>
     </div>
     <div id="gs-stats" class="gs-stats"></div>
     <div class="gs-bar-actions">
+      <button id="gs-overview-toggle" class="gs-text-btn" title="Pick a period (C)">Calendar</button>
       <button id="gs-settings-toggle" class="gs-text-btn">Settings</button>
       <button id="gs-history-toggle" class="gs-text-btn">History</button>
       <button id="gs-close" class="gs-icon-btn" title="Close (Esc)">&#10005;</button>
@@ -34,7 +37,8 @@
     <div id="gs-empty" class="gs-empty" hidden>
       <p id="gs-empty-text"></p>
       <div class="gs-empty-actions">
-        <button id="gs-empty-older" class="gs-text-btn">Older period &#8249;</button>
+        <button id="gs-empty-older" class="gs-text-btn">Next unsorted &#8249;</button>
+        <button id="gs-empty-calendar" class="gs-text-btn">Open calendar</button>
         <button id="gs-empty-retry" class="gs-text-btn" hidden>Retry</button>
         <button id="gs-empty-restart" class="gs-text-btn">Review this period again</button>
       </div>
@@ -60,6 +64,30 @@
     </button>
   </footer>
 
+  <section id="gs-overview" class="gs-overview" hidden>
+    <div class="gs-ov-head">
+      <h3>Pick a period</h3>
+      <button id="gs-ov-everything" class="gs-text-btn">Whole library</button>
+      <label class="gs-check"><input type="checkbox" id="gs-ov-tick" /> Tick-off mode <small>(clicks mark periods sorted)</small></label>
+      <span class="gs-ov-spacer"></span>
+      <span id="gs-ov-scan-status" class="gs-muted"></span>
+      <button id="gs-ov-scan" class="gs-text-btn" title="Walk the whole library once to count photos per day">Count photos</button>
+      <button id="gs-ov-close" class="gs-icon-btn" title="Close (Esc)">&#10005;</button>
+    </div>
+    <div class="gs-ov-body">
+      <div id="gs-ov-years" class="gs-ov-years"></div>
+      <div id="gs-ov-detail" class="gs-ov-detail"></div>
+    </div>
+    <div class="gs-ov-legend">
+      <span data-state="sorted">&#10003; Sorted</span>
+      <span data-state="reviewed">Everything reviewed</span>
+      <span data-state="progress">In progress</span>
+      <span data-state="todo">Not started</span>
+      <span data-state="empty">No photos</span>
+      <span class="gs-muted">Click a month for its weeks and days, double-click to review it. Numbers are reviewed / total.</span>
+    </div>
+  </section>
+
   <aside id="gs-settings" class="gs-panel" hidden>
     <h3>Swipe settings</h3>
     <fieldset>
@@ -84,6 +112,9 @@
       <dt>&#8595; / S</dt><dd>Sort later</dd>
       <dt>Z / Backspace</dt><dd>Undo</dd>
       <dt>[ / ]</dt><dd>Older / newer period</dd>
+      <dt>N</dt><dd>Next unsorted period (older)</dd>
+      <dt>C</dt><dd>Calendar / period picker</dd>
+      <dt>M</dt><dd>Mark this period sorted / unsorted</dd>
       <dt>V</dt><dd>Video sound on / off</dd>
       <dt>O</dt><dd>Open in Google Photos</dd>
       <dt>Esc</dt><dd>Close</dd>
