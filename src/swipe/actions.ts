@@ -77,7 +77,7 @@ export default class SwipeActions {
     if (!needsApi) entry.status = 'done';
     const id = await this.db.addLog(entry);
     entry.id = id;
-    await this.db.markReviewed({ mediaKey: item.mediaKey, dedupKey: item.dedupKey, decision: action, at: entry.at });
+    await this.db.markReviewed({ mediaKey: item.mediaKey, dedupKey: item.dedupKey, decision: action, at: entry.at, taken: item.timestamp });
     if (!needsApi) return { item, entry, job: null };
 
     const job = this.enqueue(async () => {

@@ -97,6 +97,8 @@ class SwipeController {
       this.saveCursor();
       if (this.actions.pending > 0) e.preventDefault();
     });
+    // Don't leave focus on a clicked button, or Space/Enter would press it again
+    this.root.addEventListener('click', (e) => (e.target as HTMLElement).closest('button')?.blur());
     // GPTK listens for every change event on the document; keep ours to ourselves
     this.root.addEventListener('change', (e) => e.stopPropagation());
     this.actions.onChange = (): void => this.renderStats();
@@ -180,6 +182,7 @@ class SwipeController {
     this.video.pause();
     this.video.hidden = true;
     this.video.removeAttribute('src');
+    this.video.load(); // actually stops the previous stream
 
     if (!item) {
       const cursors = { ...getSettings().cursors, [periodKey(this.period)]: this.period.start - 1 };
@@ -194,6 +197,7 @@ class SwipeController {
     this.img.hidden = false;
     const preloaded = this.preloaded.get(item.mediaKey);
     this.img.src = preloaded?.src ?? this.urlFor(item);
+    if (item.duration) this.startVideo(item);
     this.renderMeta(item);
     this.renderStats();
     this.preloadAhead();
@@ -306,7 +310,7 @@ class SwipeController {
     add(new Date(item.timestamp).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
     if (item.location) add(item.location);
     if (item.width && item.height) add(`${item.width}×${item.height}`);
-    if (item.duration) add(`Video ${formatDuration(item.duration)} (V to play)`, 'gs-badge');
+    if (item.duration) add(`Video ${formatDuration(item.duration)} (V for sound)`, 'gs-badge');
     if (item.isLivePhoto) add('Live', 'gs-badge');
     if (item.isFavorite) add('★ Favourite', 'gs-badge gs-badge-fav');
     if (item.isArchived) add('Archived', 'gs-badge');
@@ -328,7 +332,7 @@ class SwipeController {
     if (this.actions.failures) parts.push(`${this.actions.failures} failed (see History)`);
     $('gs-stats').textContent = parts.join(' · ');
 
-    const progress = this.current && this.feed ? periodProgress(this.period, this.current.timestamp, this.feed.newestSeen) : this.current ? 0 : 1;
+    const progress = this.current && this.feed ? periodProgress(this.period, this.current.timestamp) : this.current ? 0 : 1;
     $('gs-progress-fill').style.width = `${(progress * 100).toFixed(1)}%`;
   }
 
@@ -437,29 +441,14 @@ class SwipeController {
     delete cursors[periodKey(this.period)];
     saveSettings({ cursors });
     this.current = null;
-    if (!getSettings().skipReviewed) {
-      this.startPeriod(this.period, false);
-      return;
-    }
-    // Reviewed marks are per item, so walk the period once without skipping
-    const feed = new TimelineFeed(this.api, this.period, {
-      includeArchived: getSettings().includeArchived,
-      skipReviewed: false,
-      filterReviewed: () => Promise.resolve(new Set()),
-    });
-    this.toast('Clearing reviewed marks for this period…');
-    void (async (): Promise<void> => {
-      let batch: string[] = [];
-      for (let item = await feed.next(); item; item = await feed.next()) {
-        batch.push(item.mediaKey);
-        if (batch.length >= 500) {
-          await this.db.unmarkReviewed(batch);
-          batch = [];
-        }
-      }
-      await this.db.unmarkReviewed(batch);
-      this.startPeriod(this.period, false);
-    })().catch((error: unknown) => this.toast(`Couldn't restart: ${String(error)}`));
+    // Reviewed marks are indexed by taken time, so this is a local range delete
+    void this.db
+      .unmarkReviewedTaken(this.period.start, this.period.end)
+      .then((count) => {
+        if (count) this.toast(`Cleared ${count.toLocaleString('en-GB')} reviewed marks`);
+        this.startPeriod(this.period, false);
+      })
+      .catch((error: unknown) => this.toast(`Couldn't restart: ${String(error)}`));
   }
 
   private togglePanel(id: string): void {
@@ -512,7 +501,7 @@ class SwipeController {
       case ']':
         this.startPeriod(shiftPeriod(this.period, 1)); break;
       case 'v': case 'V':
-        this.playVideo(); break;
+        this.toggleSound(); break;
       case 'o': case 'O':
         if (this.current) window.open(`https://photos.google.com/photo/${this.current.mediaKey}`, '_blank', 'noopener');
         break;
@@ -526,19 +515,38 @@ class SwipeController {
     }
   }
 
-  private playVideo(): void {
-    const item = this.current;
-    if (!item?.duration) return;
-    this.video.hidden = false;
-    this.img.hidden = true;
-    this.video.poster = this.img.src;
-    this.video.src = `${item.thumb}=dv`;
-    this.video.onerror = (): void => {
-      this.video.hidden = true;
-      this.img.hidden = false;
-      this.toast('Video playback failed here, press O to open it in Google Photos');
+  /**
+   * Videos play inline, muted and looping, from the same base URL as the
+   * thumbnail. The still stays up until the first frame arrives so there is
+   * no blank flash, and only the current video is ever streaming.
+   */
+  private startVideo(item: SwipeItem): void {
+    const video = this.video;
+    video.muted = true;
+    video.loop = true;
+    video.poster = this.img.src;
+    const src = `${item.thumb}=dv`;
+    // Events from the previous, just-cleared source can still be in flight
+    const stale = (): boolean => this.current !== item || video.src !== src;
+    video.onloadeddata = (): void => {
+      if (stale()) return;
+      video.hidden = false;
+      this.img.hidden = true;
     };
-    void this.video.play().catch(() => undefined);
+    video.onerror = (): void => {
+      if (stale()) return;
+      video.hidden = true;
+      this.img.hidden = false;
+    };
+    video.src = src;
+    void video.play().catch(() => undefined);
+  }
+
+  private toggleSound(): void {
+    if (!this.current?.duration || this.video.hidden) return;
+    this.video.muted = !this.video.muted;
+    if (!this.video.muted) void this.video.play().catch(() => undefined);
+    this.toast(this.video.muted ? 'Sound off' : 'Sound on');
   }
 
   // ─── settings panel ──────────────────────────────────────────────────

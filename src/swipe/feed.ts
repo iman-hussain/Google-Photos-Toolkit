@@ -58,7 +58,6 @@ export default class TimelineFeed {
   private exhausted = false;
   private loading: Promise<void> | null = null;
   private lastPageKeys = new Set<string>();
-  newestSeen = -Infinity;
   fetchedPages = 0;
   skippedReviewed = 0;
 
@@ -111,10 +110,14 @@ export default class TimelineFeed {
     this.fetchedPages++;
     this.nextPageId = page?.nextPageId ?? null;
     const last = page?.lastItemTimestamp;
-    this.nextTimestamp = typeof last === 'number' && Number.isFinite(last) ? last - 1 : null;
+    const hasLast = typeof last === 'number' && Number.isFinite(last);
+    this.nextTimestamp = hasLast ? last - 1 : null;
 
-    // Same stop condition GPTK core uses for date-bounded timeline scans
-    const more = Boolean(this.nextPageId && !this.nextTimestamp) || Boolean(this.nextTimestamp && this.nextTimestamp > this.period.start);
+    // With a page token the API carries on exactly where it stopped, even
+    // mid-way through items sharing one timestamp (common with scans), so
+    // the timestamp is only a fallback. The last item can sit exactly on the
+    // period start with more at that same instant still to come, hence >=.
+    const more = this.nextPageId ? !hasLast || last >= this.period.start : hasLast && last - 1 >= this.period.start;
     this.exhausted = !more;
 
     const pageKeys = new Set<string>();
@@ -124,7 +127,6 @@ export default class TimelineFeed {
       const item = compact(raw);
       if (!item || this.lastPageKeys.has(item.mediaKey) || pageKeys.has(item.mediaKey)) continue;
       pageKeys.add(item.mediaKey);
-      if (item.timestamp > this.newestSeen) this.newestSeen = item.timestamp;
       candidates.push(item);
     }
     this.lastPageKeys = pageKeys;

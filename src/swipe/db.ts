@@ -9,9 +9,10 @@ export interface ReviewedRecord {
   dedupKey: string;
   decision: SwipeAction;
   at: number;
+  taken: number;
 }
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const REVIEWED = 'reviewed';
 const LOG = 'log';
 
@@ -38,7 +39,12 @@ export default class SwipeDb {
       const request = indexedDB.open(`gptk-swipe-${account}`, DB_VERSION);
       request.onupgradeneeded = (): void => {
         const db = request.result;
-        if (!db.objectStoreNames.contains(REVIEWED)) db.createObjectStore(REVIEWED, { keyPath: 'mediaKey' });
+        const upgrade = request.transaction;
+        const reviewed = upgrade && db.objectStoreNames.contains(REVIEWED)
+          ? upgrade.objectStore(REVIEWED)
+          : db.createObjectStore(REVIEWED, { keyPath: 'mediaKey' });
+        // Lets a period's reviewed marks be cleared without touching the network
+        if (!reviewed.indexNames.contains('taken')) reviewed.createIndex('taken', 'taken');
         if (!db.objectStoreNames.contains(LOG)) {
           const log = db.createObjectStore(LOG, { keyPath: 'id', autoIncrement: true });
           log.createIndex('at', 'at');
@@ -83,6 +89,26 @@ export default class SwipeDb {
     }
     await done(tx);
     return found;
+  }
+
+  /** Forget reviewed marks for items taken in [start, end). */
+  async unmarkReviewedTaken(start: number, end: number): Promise<number> {
+    const { tx, store } = await this.store(REVIEWED, 'readwrite');
+    let range: IDBKeyRange | null = null;
+    if (Number.isFinite(start) && Number.isFinite(end)) range = IDBKeyRange.bound(start, end, false, true);
+    else if (Number.isFinite(start)) range = IDBKeyRange.lowerBound(start);
+    else if (Number.isFinite(end)) range = IDBKeyRange.upperBound(end, true);
+    let count = 0;
+    const request = store.index('taken').openKeyCursor(range);
+    request.onsuccess = (): void => {
+      const cursor = request.result;
+      if (!cursor) return;
+      store.delete(cursor.primaryKey);
+      count++;
+      cursor.continue();
+    };
+    await done(tx);
+    return count;
   }
 
   async countReviewed(): Promise<number> {

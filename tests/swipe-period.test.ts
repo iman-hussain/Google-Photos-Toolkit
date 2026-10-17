@@ -63,9 +63,17 @@ describe('helpers', () => {
 
   it('periodProgress walks from newest to oldest', () => {
     const p = periodContaining('day', local(2024, 3, 15));
-    expect(periodProgress(p, p.end, 0)).toBe(0);
-    expect(periodProgress(p, (p.start + p.end) / 2, 0)).toBe(0.5);
-    expect(periodProgress(p, p.start, 0)).toBe(1);
+    const later = p.end + 1000;
+    expect(periodProgress(p, p.end, later)).toBe(0);
+    expect(periodProgress(p, (p.start + p.end) / 2, later)).toBe(0.5);
+    expect(periodProgress(p, p.start, later)).toBe(1);
+  });
+
+  it('periodProgress starts at 0 when the period ends in the future', () => {
+    const p = periodContaining('month', local(2024, 3, 10));
+    const now = local(2024, 3, 15);
+    expect(periodProgress(p, now, now)).toBe(0);
+    expect(periodProgress(p, p.start, now)).toBe(1);
   });
 
   it('round-trips date input values', () => {

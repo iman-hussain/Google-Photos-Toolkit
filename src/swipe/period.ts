@@ -68,8 +68,10 @@ export function periodLabel(period: Period): string {
 }
 
 /** How far through the period a timestamp is, walking newest to oldest (0..1). */
-export function periodProgress(period: Period, timestamp: number, newestSeen: number): number {
-  const top = Number.isFinite(period.end) ? period.end : newestSeen;
+export function periodProgress(period: Period, timestamp: number, now = Date.now()): number {
+  // The current period ends in the future, so measure from now rather than
+  // the calendar end
+  const top = Math.min(period.end, now);
   const bottom = Number.isFinite(period.start) ? period.start : 0;
   if (top <= bottom) return 0;
   return Math.min(1, Math.max(0, (top - timestamp) / (top - bottom)));
