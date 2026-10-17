@@ -16,10 +16,16 @@ function generateComment(manifest) {
       return value.map(subVal => generateLine(key, subVal)).join('\n');
     return generateLine(key, value);
   }).join('\n');
+  // MIT requires the copyright and permission notice in every copy
+  const licence = fs.readFileSync(new URL('../LICENSE', import.meta.url), 'utf8').trim();
   return [
     '// ==UserScript==',
     lines,
     '// ==/UserScript==',
+    '',
+    '/*',
+    licence,
+    '*/',
     '',
   ].join('\n');
 }

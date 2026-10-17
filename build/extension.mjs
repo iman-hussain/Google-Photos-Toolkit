@@ -30,6 +30,7 @@ export function extensionManifest() {
         ],
       };
       this.emitFile({ type: 'asset', fileName: 'manifest.json', source: JSON.stringify(manifest, null, 2) });
+      this.emitFile({ type: 'asset', fileName: 'LICENSE', source: fs.readFileSync(new URL('../LICENSE', import.meta.url)) });
       this.emitFile({ type: 'asset', fileName: 'icon.png', source: fs.readFileSync(new URL('../media/icon.png', import.meta.url)) });
     },
   };

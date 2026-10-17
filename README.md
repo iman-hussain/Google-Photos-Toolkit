@@ -2,7 +2,7 @@
 
 Bulk organize your media, plus a swipe mode for going through it one photo at a time.
 
-This is a fork of [xob0t/Google-Photos-Toolkit](https://github.com/xob0t/Google-Photos-Toolkit). Everything from upstream still works the same; swipe mode is added on top.
+> **This is a fork.** Google Photos Toolkit (GPTK) is created and maintained by [xob0t](https://github.com/xob0t), at [xob0t/Google-Photos-Toolkit](https://github.com/xob0t/Google-Photos-Toolkit). All of the toolkit itself is their work: the reverse-engineered Google Photos web API, the filters and the bulk actions. This fork by [iman-hussain](https://github.com/iman-hussain) only adds swipe mode and the Chrome extension packaging on top, and is not affiliated with or endorsed by the original author. It's released under the same [MIT licence](LICENSE), with xob0t's copyright notice kept as the licence requires.
 
 ![demo](media/demo.png)
 
@@ -37,6 +37,10 @@ Open it from the swipe button in the Google Photos header, the Tampermonkey menu
 
 Pick a day, week, month or year (or the whole library) and you get one photo at a time, newest first.
 
+**Picking a period**: click the period name in the toolbar (or press `C`) to open the calendar. It shows every year as a row of months. Click a month to see its weeks and days on the right, then click a week or a day to review just that, or "Review" for the whole month. Double-click a month or year to jump straight in. "Count photos" walks the library once (a few minutes for a big library) so each cell also shows how many photos it holds, and empty months are greyed out.
+
+**Ticking off what you've sorted**: finishing a period marks it sorted automatically, and you can mark any period by hand with "Mark sorted" (`M`). In the calendar, tick-off mode lets you click through months, weeks or days to mark them in bulk, for example everything you'd already cleaned up before using this. Sorted periods show a tick, in-progress ones show how many you've reviewed, and anything inside a sorted month or year counts as sorted. "Next unsorted" (`N`) skips straight to the next older period you haven't done.
+
 | Key | Button | Does |
 |---|---|---|
 | `←` / `A` | Delete | Bin, delete album or archive, depending on settings |
@@ -45,6 +49,9 @@ Pick a day, week, month or year (or the whole library) and you get one photo at 
 | `↓` / `S` | Sort later | Adds it to a "Sort later" album |
 | `Z` / `Backspace` | Undo | Reverses the last action and shows the photo again |
 | `[` / `]` | | Older / newer period |
+| `N` | Next unsorted | Next older period that isn't sorted (and has photos, once counted) |
+| `C` | Calendar | Open the period picker |
+| `M` | Mark sorted | Mark the current period sorted, or unmark it |
 | `V` | | Video sound on / off (videos play inline, muted) |
 | `O` | | Open the photo in Google Photos |
 
@@ -121,6 +128,8 @@ console.log('DONE');
 
 ## Contributions welcome
 
+*From xob0t, the original author:*
+
 If you want to learn more about how GP's api works, read [https://kovatch.medium.com/deciphering-google-batchexecute-74991e4e446c](https://kovatch.medium.com/deciphering-google-batchexecute-74991e4e446c)  
 I just found this post, after doing all the work from zero :D
 
@@ -128,25 +137,31 @@ Also, i've made a userscript that parses all responses and logs them to console 
 
 ## BUGS
 
-If something does not work, open an [issue](https://github.com/xob0t/Google-Photos-Toolkit/issues) and describe it in detail
+Problems with swipe mode or the Chrome extension belong to this fork: open an [issue here](https://github.com/iman-hussain/Google-Photos-Toolkit/issues), not upstream.
 
-If you have a question, open a [discussion](https://github.com/xob0t/Google-Photos-Toolkit/discussions)
+For the toolkit itself, first check it also happens with the [original userscript](https://github.com/xob0t/Google-Photos-Toolkit). If it does, open an [issue](https://github.com/xob0t/Google-Photos-Toolkit/issues) or a [discussion](https://github.com/xob0t/Google-Photos-Toolkit/discussions) there and describe it in detail.
 
 ## Credits
 
-Borrowed some code and UI inspiration from [undiscord](https://github.com/victornpb/undiscord)
+- [xob0t](https://github.com/xob0t) created [Google Photos Toolkit](https://github.com/xob0t/Google-Photos-Toolkit), which this fork is built on, along with its other contributors
+- GPTK borrowed some code and UI inspiration from [undiscord](https://github.com/victornpb/undiscord)
+- Swipe mode and the extension packaging are by [iman-hussain](https://github.com/iman-hussain)
 
-## My Other Google Photos Projects
+## xob0t's other Google Photos projects
 
 - Python client with unlimited uploads: [https://github.com/xob0t/gphotos_mobile_client](https://github.com/xob0t/gphotos_mobile_client)
 - Disguise any file as media for GP to accept and store it: [https://github.com/xob0t/gp-file-hide](https://github.com/xob0t/gp-file-hide)
 
 ## ♥
 
-If GPTK is useful to you, please consider supporting the project:
+If GPTK is useful to you, please consider supporting its original author, xob0t:
 
 BTC `12znTocLytrrYhQT4AJVeJdR8KTULWbKb7`  
 BTC Cash `qq7w48d6s3rddgxshl6ae48k7c5jyck76crvppqenn`  
 DOGE `DQjBzT2qMuXkLMawUXG7umTf3k9VeT4Y6K`  
 Etherium `0xcfe559D9F6056F82a6CFdEDA51c00132035955c8`  
 Litecoin `ltc1qcgc873py5k28qm85sk5d53yfwzle4cztmvkh6l`
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The original copyright belongs to xob0t (2024); the swipe mode additions are copyright Iman Hussain (2026) under the same licence. The licence text and both notices are included in the built userscript and extension.
